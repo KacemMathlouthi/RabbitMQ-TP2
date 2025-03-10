@@ -28,12 +28,17 @@ class SalesSyncApp:
         # Flags to track pending changes
         self.branch1_has_changes = False
         self.branch2_has_changes = False
+        
+        # Start consumer automatically on initialization
+        self.start_consumer()
     
     def start_consumer(self):
         """Start the consumer thread to process messages"""
         if not self.consumer.is_consuming:
             success = self.consumer.start_consuming()
-            return "Consumer started successfully" if success else "Failed to start consumer"
+            message = "Consumer started successfully" if success else "Failed to start consumer"
+            print(message)
+            return message
         return "Consumer is already running"
     
     def stop_consumer(self):

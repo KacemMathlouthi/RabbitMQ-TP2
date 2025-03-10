@@ -60,7 +60,7 @@ class SalesConsumer:
                 # Set QoS (quality of service)
                 self.channel.basic_qos(prefetch_count=1)
                 
-                # Set up consumer
+                # Set up consumer with correct callback signature
                 self.channel.basic_consume(
                     queue=queue_name,
                     on_message_callback=self.process_message,
@@ -86,26 +86,37 @@ class SalesConsumer:
             if thread.is_alive():
                 thread.join()
     
-    def process_message(self, ch, method, body):
+    def process_message(self, ch, method, properties, body):
         """
         Process incoming messages from RabbitMQ
         :param ch: Channel
         :param method: Method
+        :param properties: Properties
         :param body: Message body
         """
         try:
             # Parse message
             message = json.loads(body)
+            print(f"Received message: {message}")
             
             # Connect to database
             self.db.connect()
             
             # Convert date string to date object if needed
             if isinstance(message['date'], str):
-                message['date'] = datetime.fromisoformat(message['date']).date()
+                try:
+                    message['date'] = datetime.fromisoformat(message['date']).date()
+                except ValueError:
+                    # Handle ISO 8601 format with Z
+                    if message['date'].endswith('Z'):
+                        message['date'] = datetime.fromisoformat(message['date'][:-1]).date()
+                    else:
+                        # Try with different format
+                        message['date'] = datetime.strptime(message['date'], "%Y-%m-%d").date()
             
             # Create sale data for head office
             sale_data = {
+                'sale_id': message['sale_id'],  # Make sure to include sale_id
                 'date': message['date'],
                 'region': message['region'],
                 'product': message['product'],
@@ -117,7 +128,8 @@ class SalesConsumer:
             }
             
             # Add to head office database
-            success = self.db.add_sale_to_head_office(sale_data, message['branch'])
+            source_branch = message['branch']
+            success = self.db.add_sale_to_head_office(sale_data, source_branch)
             
             if success:
                 # Acknowledge message
@@ -132,9 +144,9 @@ class SalesConsumer:
             self.db.disconnect()
             
         except Exception as e:
+            print(f"Error processing message: {e}")
             # Reject message but don't requeue if it's a parsing error
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-            print(f"Error processing message: {e}")
     
     def start_consuming(self):
         """Start consuming messages in a separate thread"""
