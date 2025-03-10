@@ -57,101 +57,60 @@ class DatabaseConnector:
             print(f"Error executing query: {e}")
             return None
     
-    def get_unsynchronized_sales(self):
-        """Get sales records that haven't been sent to head office"""
+    def get_all_sales_for_sync(self):
+        """Get all sales records from branch for syncing to head office"""
         if self.db_type in ['branch1', 'branch2']:
             query = """
             SELECT 
                 sale_id, date, region, product, qty, cost, amt, tax, total
             FROM 
                 product_sales 
-            WHERE 
-                sale_id NOT IN (
-                    SELECT DISTINCT sale_id 
-                    FROM product_sales_sync_status 
-                    WHERE is_synced = 1
-                )
             """
             
-            # Check if the sync status table exists, if not create it
-            self.ensure_sync_table_exists()
-            
-            # Get unsynchronized records
+            # Get records
             records = self.execute_query(query)
             return records
         else:
             print("This method is only for branch databases")
             return []
     
-    def ensure_sync_table_exists(self):
-        """Create sync status table if it doesn't exist"""
+    def check_for_unsynced_sales(self):
+        """
+        Check if there are sales in the branch that might not be synced to head office
+        """
         if self.db_type in ['branch1', 'branch2']:
-            check_query = """
-            SELECT COUNT(*) as count 
-            FROM information_schema.tables 
-            WHERE table_schema = %s 
-            AND table_name = 'product_sales_sync_status'
+            query = """
+            SELECT COUNT(*) as count
+            FROM product_sales
             """
             
-            result = self.execute_query(check_query, (self.config['database'],))
-            
-            if result[0]['count'] == 0:
-                create_query = """
-                CREATE TABLE product_sales_sync_status (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    sale_id INT NOT NULL,
-                    is_synced BOOLEAN DEFAULT FALSE,
-                    sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (sale_id) REFERENCES product_sales(sale_id)
-                )
-                """
-                self.execute_query(create_query, commit=True)
-    
-    def mark_as_synced(self, sale_id):
-        """Mark a record as synchronized"""
-        if self.db_type in ['branch1', 'branch2']:
-            # Ensure sync table exists
-            self.ensure_sync_table_exists()
-            
-            # Check if record exists in sync table
-            check_query = """
-            SELECT COUNT(*) as count 
-            FROM product_sales_sync_status 
-            WHERE sale_id = %s
-            """
-            
-            result = self.execute_query(check_query, (sale_id,))
-            
-            if result[0]['count'] == 0:
-                # Insert new record
-                insert_query = """
-                INSERT INTO product_sales_sync_status 
-                (sale_id, is_synced) 
-                VALUES (%s, TRUE)
-                """
-                self.execute_query(insert_query, (sale_id,), commit=True)
-            else:
-                # Update existing record
-                update_query = """
-                UPDATE product_sales_sync_status 
-                SET is_synced = TRUE, 
-                    sync_time = CURRENT_TIMESTAMP 
-                WHERE sale_id = %s
-                """
-                self.execute_query(update_query, (sale_id,), commit=True)
-            
-            return True
+            result = self.execute_query(query)
+            return result[0]['count'] > 0
         else:
             print("This method is only for branch databases")
             return False
-    
+            
     def add_sale_to_head_office(self, sale_data, source_branch):
         """Add a new sale record to the head office database"""
         if self.db_type == 'head_office':
+            # First check if this sale_id from this branch already exists
+            check_query = """
+            SELECT COUNT(*) as count
+            FROM product_sales
+            WHERE original_sale_id = %s AND source_branch = %s
+            """
+            
+            check_result = self.execute_query(check_query, (sale_data['sale_id'], source_branch))
+            
+            # If record already exists, skip insertion
+            if check_result[0]['count'] > 0:
+                print(f"Sale {sale_data['sale_id']} from {source_branch} already exists in head office.")
+                return True
+                
             insert_query = """
             INSERT INTO product_sales 
-            (date, region, product, qty, cost, amt, tax, total, source_branch) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (date, region, product, qty, cost, amt, tax, total, source_branch, original_sale_id) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             
             params = (
@@ -163,7 +122,8 @@ class DatabaseConnector:
                 sale_data['amt'],
                 sale_data['tax'],
                 sale_data['total'],
-                source_branch
+                source_branch,
+                sale_data['sale_id']
             )
             
             self.execute_query(insert_query, params, commit=True)
@@ -203,7 +163,14 @@ class DatabaseConnector:
             )
             
             self.execute_query(insert_query, params, commit=True)
-            return True
+            
+            # Get the sale_id of the newly inserted record
+            get_last_id_query = "SELECT LAST_INSERT_ID() as last_id"
+            result = self.execute_query(get_last_id_query)
+            
+            if result and 'last_id' in result[0]:
+                return result[0]['last_id']
+            return None
         else:
             print("This method is only for branch databases")
-            return False
+            return None
