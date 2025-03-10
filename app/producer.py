@@ -1,7 +1,7 @@
 import pika
 import json
 import time
-from datetime import datetime
+from datetime import datetime, date
 from db_connector import DatabaseConnector
 from config import RABBITMQ_CONFIG
 
@@ -83,7 +83,7 @@ class SalesProducer:
             queue_name = RABBITMQ_CONFIG['queues'][f'{self.branch_name}_queue']
             message = {
                 'sale_id': sale_data['sale_id'],
-                'date': sale_data['date'].isoformat() if isinstance(sale_data['date'], datetime) else sale_data['date'],
+                'date': sale_data['date'].isoformat() if isinstance(sale_data['date'], (datetime, date)) else sale_data['date'],
                 'region': sale_data['region'],
                 'product': sale_data['product'],
                 'qty': sale_data['qty'],
