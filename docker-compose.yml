@@ -54,7 +54,9 @@ services:
     volumes:
       - ./app:/app  
     working_dir: /app  # Set the working directory to /app
-    command: ["python", "Table.py"]
+    command: ["python", "main.py"]
+    ports:
+      - "7860:7860" 
 
   rabbitmq:
     image: rabbitmq:4.0-management
