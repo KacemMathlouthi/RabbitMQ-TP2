@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  HeadOfficeDB:
+    image: mysql:latest
+    container_name: HeadOfficeDB
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: head_office_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3307:3306"
+    volumes:
+      - head_office_data:/var/lib/mysql
+
+  BranchOneDB:
+    image: mysql:latest
+    container_name: BranchOneDB
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: branch1_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3308:3306"
+    volumes:
+      - branch1_data:/var/lib/mysql
+
+  BranchTwoDB:
+    image: mysql:latest
+    container_name: BranchTwoDB
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: branch2_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3309:3306"
+    volumes:
+      - branch2_data:/var/lib/mysql
+
+  python_app:
+    build: .
+    container_name: python_app
+    depends_on:
+      - HeadOfficeDB
+      - BranchOneDB
+      - BranchTwoDB
+    volumes:
+      - ./app:/app  
+    working_dir: /app  # Set the working directory to /app
+    command: ["python", "Table.py"]
+
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"  # RabbitMQ server port
+      - "15672:15672"  # RabbitMQ management console
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  head_office_data:
+  branch1_data:
+  branch2_data:
+  rabbitmq_data:  # Volume for RabbitMQ data
