@@ -1,10 +1,11 @@
--- head_office.sql
--- Drop table if it exists to ensure clean initialization
+-- Drop table if it exists
 DROP TABLE IF EXISTS product_sales;
 
 -- Create product_sales table
 CREATE TABLE product_sales (
-    sale_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,  -- Unique ID for head office
+    original_sale_id INT NOT NULL,  -- The sale_id from the branch
+    source_branch VARCHAR(50) NOT NULL,  -- Track which branch sent the sale
     date DATE NOT NULL,
     region VARCHAR(50) NOT NULL,
     product VARCHAR(100) NOT NULL,
@@ -14,7 +15,7 @@ CREATE TABLE product_sales (
     tax DECIMAL(10, 2) NOT NULL,
     total DECIMAL(10, 2) NOT NULL,
     last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    source_branch VARCHAR(10) NULL
+    UNIQUE KEY (original_sale_id, source_branch)  -- Prevent duplicate sales from the same branch
 );
 
 -- Create a view for easy reporting
