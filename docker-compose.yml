@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   HeadOfficeDB:
     image: mysql:latest
@@ -14,6 +12,7 @@ services:
       - "3307:3306"
     volumes:
       - head_office_data:/var/lib/mysql
+      - ./db_init/head_office.sql:/docker-entrypoint-initdb.d/init.sql
 
   BranchOneDB:
     image: mysql:latest
@@ -28,6 +27,7 @@ services:
       - "3308:3306"
     volumes:
       - branch1_data:/var/lib/mysql
+      - ./db_init/branch1.sql:/docker-entrypoint-initdb.d/init.sql
 
   BranchTwoDB:
     image: mysql:latest
@@ -42,6 +42,7 @@ services:
       - "3309:3306"
     volumes:
       - branch2_data:/var/lib/mysql
+      - ./db_init/branch2.sql:/docker-entrypoint-initdb.d/init.sql
 
   python_app:
     build: .
