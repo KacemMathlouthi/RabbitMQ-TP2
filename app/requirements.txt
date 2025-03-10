@@ -39,6 +39,7 @@ requests==2.32.3
 rich==13.9.4
 ruff==0.9.10
 safehttpx==0.1.6
+schedule==1.2.2
 semantic-version==2.10.0
 shellingham==1.5.4
 six==1.17.0

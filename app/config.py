@@ -38,4 +38,4 @@ RABBITMQ_CONFIG = {
 }
 
 # Sync interval in seconds
-SYNC_INTERVAL = 300  # 5 minutes
+SYNC_INTERVAL = 60  # 1 minute
